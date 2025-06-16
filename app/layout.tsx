@@ -1,5 +1,5 @@
 import { Footer, Layout, Navbar } from 'nextra-theme-docs'
-import { Head } from 'nextra/components'
+import { Head, Search } from 'nextra/components'
 import { getPageMap } from 'nextra/page-map'
 import 'nextra-theme-docs/style.css'
 
@@ -14,6 +14,7 @@ const navbar = (
   />
 )
 const footer = <Footer>{new Date().getFullYear()} © Propety +.</Footer>
+const search = <Search placeholder='search docs'></Search>
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -40,6 +41,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             content: null
           }}
           editLink={null}
+          search={search}
         >
           {children}
         </Layout>

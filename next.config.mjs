@@ -2,19 +2,11 @@ import nextra from 'nextra'
  
 // Set up Nextra with its configuration
 const withNextra = nextra({
-  // ... Add Nextra-specific options here
+  defaultShowCopyCode: true,
 })
  
 // Export the final Next.js config with Nextra included
 export default withNextra({
-  redirects: async () => {
-    return [
-      {
-        source: '/',
-        destination: '/prop-digi-docs',
-        permanent: true, 
-      },
-    ]
-  },
+ 
   search: { codeblocks: false }
 })
