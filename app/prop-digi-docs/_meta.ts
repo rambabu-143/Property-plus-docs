@@ -3,6 +3,7 @@ import type { MetaRecord } from "nextra";
 const meta: MetaRecord = {
   part1: "📙 Overview",
   part2: "📖 Getting Started",
+  part10: "📊 Requirements",
   part3: "🔐 Authentication",
   part4: "⚓ API Concepts",
   part5: "📚 API Reference",
