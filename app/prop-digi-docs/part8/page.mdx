@@ -1,0 +1,68 @@
+##  Error Handling, Rate Limiting, and API Stability
+
+Building a resilient integration requires understanding how to handle API errors, respect usage limits, and safely retry failed requests. This section provides the necessary information to make your application robust and stable.4
+
+### **8.1 Error Responses**
+
+When an API request fails, Property+ returns a standard, predictable JSON error response. This allows you to programmatically handle errors in a consistent way. The API uses standard HTTP status codes to indicate the general nature of the error.6
+
+The JSON error payload has the following structure:
+
+```json
+{
+  "error": {
+    "type": "invalid_request_error",
+    "code": "parameter_missing",
+    "title": "Invalid Request",
+    "detail": "A required parameter, 'title', was not provided for the work order.",
+    "request_id": "req_123456789"
+  }
+}
+```
+
+- **type**: A machine-readable string categorizing the error (e.g., api_error, authentication_error, invalid_request_error).
+- **code** (optional): A more specific code for the error (e.g., parameter_missing, token_expired).
+- **title**: A short, human-readable summary of the error.
+- **detail**: A more detailed, human-readable explanation of what went wrong.
+- **request_id**: A unique identifier for the API request. You should include this ID when contacting support about a specific issue.
+
+The following table details the most common HTTP status codes and the error types associated with them.
+
+| HTTP Status               | Error type            | Description                                                                                                                                                               |
+| :------------------------ | :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 400 Bad Request           | invalid_request_error | The request was malformed. This could be due to invalid JSON, missing required parameters, or invalid parameter values. The detail field will explain the specific issue. |
+| 401 Unauthorized          | authentication_error  | The request was not authenticated. This usually means the Authorization header was missing or the provided access token is invalid or expired.                            |
+| 403 Forbidden             | permission_error      | The authenticated user does not have the necessary permissions (role or scope) to perform the requested action.                                                           |
+| 404 Not Found             | resource_not_found    | The requested resource (e.g., a property with a specific ID) does not exist.                                                                                              |
+| 429 Too Many Requests     | rate_limit_error      | The application has exceeded its allowed number of requests in a given time window.                                                                                       |
+| 500 Internal Server Error | api_error             | An unexpected error occurred on our servers. These are rare. If you consistently receive this error, please contact support with the request_id.                          |
+
+### **8.2 Rate Limiting**
+
+To ensure the stability and fair use of the API for all our users, we enforce rate limits on incoming requests. The specific limits may vary between the sandbox and production environments.
+
+The API communicates the current rate limit status to your client via the following HTTP response headers, which are included in every API response:
+
+- **X-RateLimit-Limit**: The total number of requests allowed in the current time window.
+- **X-RateLimit-Remaining**: The number of requests remaining in the current window.
+- **X-RateLimit-Reset**: A Unix timestamp indicating when the current window will reset and your request allowance will be restored.
+
+Your application should monitor these headers to avoid exceeding the limit. If you do exceed the limit, the API will respond with a 429 Too Many Requests status code. When you receive a 429 error, you should pause making requests and wait until the time specified in the X-RateLimit-Reset header before retrying. It is recommended to implement a client-side exponential backoff strategy to handle these errors gracefully.
+
+### **8.3 Idempotency for Safe Retries**
+
+Network errors can happen. A request might time out, and your client might not know if the server processed it or not. Retrying a GET request is safe, but retrying a POST request (e.g., creating a new work order) could result in creating duplicate resources.
+
+To prevent this, the Property+ API supports idempotent POST requests. You can safely retry a POST request by providing a unique idempotency key in the Idempotency-Key HTTP header. An idempotency key is a unique string (e.g., a UUID) that you generate on the client side.
+
+When you make a POST request with an idempotency key, the server checks if it has seen that key before.
+
+- If it's the first time seeing this key, the server processes the request as normal and stores the result.
+- If the server receives a subsequent request with the _same_ idempotency key within 24 hours, it will not re-process the request. Instead, it will simply return the same result that was generated from the original request.
+
+This guarantees that even if you retry a request multiple times due to network failures, the operation will only be performed once.
+
+Example:
+POST /v1/work-orders
+Authorization: Bearer YOUR_ACCESS_TOKEN
+Idempotency-Key: 2a9b1b8e-5b7a-4c1e-9f0a-3a8d4b6c7d8e

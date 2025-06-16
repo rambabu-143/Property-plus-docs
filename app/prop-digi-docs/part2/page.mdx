@@ -1,0 +1,118 @@
+##  Getting Started: A Practical Quickstart Guide
+
+This guide is designed to help you make your first successful API call in under five minutes. It provides a streamlined path to get you authenticated and interacting with the Property+ API, giving you a tangible result as quickly as possible. Following these steps is the best way to familiarize yourself with the basic mechanics of the API before diving into more complex topics.1
+
+### **2.1 Step 0: The Sandbox Environment**
+
+All development and testing must be conducted in our dedicated sandbox environment. The sandbox is a full-featured replica of our production API but is connected to an isolated database. This allows you to build and test your integration without any risk of affecting live production data. All API requests in this guide and throughout your development process should be directed to the sandbox base URL:
+
+https://api.sandbox.property.plus
+
+API keys obtained for the sandbox environment will not work in the production environment, and vice versa.
+
+### **2.2 Step 1: Register Your Application**
+
+Before you can authenticate, you must register your application in the Property+ Developer Dashboard. This process will generate the credentials your application will use to identify itself to our API.
+
+1. Log in to your Property+ account and navigate to the Developer Dashboard.
+2. Click on "Create New Application."
+3. Fill in the required details for your application, such as its name and a brief description.
+4. Once created, your application will be assigned a unique client_id and a client_secret.
+
+**Important:** The client_secret is a sensitive credential and should be stored securely, just like a password. Do not expose it in client-side code or commit it to version control.
+
+### **2.3 Step 2: Authentication**
+
+For this quickstart, we will use the OAuth 2.0 Client Credentials Grant, which is ideal for server-to-server integrations where a user is not directly involved. This flow involves exchanging your application's client_id and client_secret for a bearer token. This token must be included in all subsequent API requests.
+
+You can obtain a bearer token by making a POST request to our token endpoint. Below is an example using cURL. Replace YOUR_CLIENT_ID and YOUR_CLIENT_SECRET with the credentials you obtained in the previous step.
+
+```bash
+curl -X POST https://api.sandbox.property.plus/oauth2/token
+ -H "Content-Type: application/x-www-form-urlencoded"
+ -d "grant_type=client_credentials"
+ -d "client_id=YOUR_CLIENT_ID"
+ -d "client_secret=YOUR_CLIENT_SECRET"
+```
+
+A successful request will return a JSON response containing your access_token:
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "token_type": "Bearer",
+  "expires_in": 3600
+}
+```
+
+Copy the value of the access_token. You will use this in the next step.
+
+### **2.4 Step 3: Your First API Call**
+
+Now that you have an access token, you can make an authenticated request to the API. Let's make a simple GET request to retrieve a list of properties associated with your account.
+
+The access token must be passed in the Authorization header of your request, prefixed with Bearer .
+
+Below are examples of how to make this call in several popular languages. Replace YOUR_ACCESS_TOKEN with the token you just received.
+
+#### **cURL**
+
+```bash
+curl -X GET https://api.sandbox.property.plus/v1/properties -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+#### **Python (with requests library)**
+
+```python
+
+import requests
+
+api_url = "https://api.sandbox.property.plus/v1/properties"
+access_token = "YOUR_ACCESS_TOKEN"
+
+headers = {
+    "Authorization": f"Bearer {access_token}"
+}
+
+response = requests.get(api_url, headers=headers)
+
+if response.status_code == 200:
+    print(response.json())
+else:
+    print(f"Error: {response.status_code}")
+    print(response.text)
+```
+
+#### **JavaScript (with fetch API in a browser or Node.js)**
+
+```javascript
+const apiUrl = "https://api.sandbox.property.plus/v1/properties";
+const accessToken = "YOUR_ACCESS_TOKEN";
+
+fetch(apiUrl, {
+  method: "GET",
+  headers: {
+    Authorization: `Bearer ${accessToken}`,
+  },
+})
+  .then((response) => {
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  })
+  .then((data) => console.log(data))
+  .catch((error) => console.error("Error fetching data:", error));
+```
+
+A successful response will be a JSON object containing a list of property resources. Congratulations, you have successfully integrated with the Property+ API\!
+
+### **2.5 Exploring with the Postman Collection**
+
+To make exploring the API even easier, we provide a comprehensive Postman collection. This collection includes pre-configured requests for every endpoint in the API, complete with example parameters and headers. It is the fastest way to experiment with different API calls and see their responses without writing any code.1
+
+1. **Download Postman:** If you don't already have it, download and install the Postman application.
+2. **Import the Collection:** Click the "Run in Postman" button on our Developer Portal to import the Property+ API collection and environment.
+3. **Configure the Environment:** In the Postman environment settings, populate the client_id and client_secret variables with your credentials. The collection includes a request that will automatically fetch and set the access_token for you.
+
+With the Postman collection, you can now explore the full capabilities of the API interactively.

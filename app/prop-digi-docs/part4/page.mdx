@@ -1,0 +1,145 @@
+##  Core API Concepts and Data Models
+
+This section provides a reference for the fundamental data objects that make up the Property+ API. Understanding these core resources, their attributes, and their relationships is essential for effective integration. Each object is represented in JSON format in API requests and responses.17
+
+### **Property**
+
+The Property object represents a distinct physical property, such as an apartment building, an office complex, or a single-family home. It is the top-level container for most other resources.
+
+- **id** string: A unique identifier for the property.
+- **name** string: The display name of the property (e.g., "The Grandview Apartments").
+- **address** object: A structured address object.
+- **type** string: The type of property (e.g., RESIDENTIAL_MULTIFAMILY, COMMERCIAL_OFFICE).
+- **created_at** timestamp: The timestamp when the property was created.
+
+```json
+{
+  "id": "prop_1A2b3C4d5E6f7G8h",
+  "object": "property",
+  "name": "The Grandview Apartments",
+  "address": {
+    "street_line1": "123 Main Street",
+    "city": "Metropolis",
+    "state": "NY",
+    "postal_code": "10001",
+    "country": "US"
+  },
+  "type": "RESIDENTIAL_MULTIFAMILY",
+  "created_at": "2023-10-27T10:00:00Z"
+}
+```
+
+### **Unit**
+
+A Unit represents a specific, rentable space within a Property, such as an apartment or an office suite.
+
+- **id** string: A unique identifier for the unit.
+- **property_id** string: The ID of the parent Property.
+- **unit_number** string: The identifier for the unit within the property (e.g., "4B", "Suite 210").
+- **floor** integer: The floor number the unit is on.
+- **square_footage** integer: The area of the unit in square feet.
+
+```json
+{
+  "id": "unit_9I8j7K6l5M4n3O2p",
+  "object": "unit",
+  "property_id": "prop_1A2b3C4d5E6f7G8h",
+  "unit_number": "4B",
+  "floor": 4,
+  "square_footage": 850
+}
+```
+
+### **DigitalTwin**
+
+The DigitalTwin object is the virtual representation of a Property. It serves as the hub for all spatial, operational, and lifecycle data.
+
+- **id** string: A unique identifier for the digital twin.
+- **property_id** string: The ID of the Property this twin represents.
+- **model_url** string: A URL to the primary 3D/BIM model file.
+- **status** string: The current status of the twin (e.g., ACTIVE, PROCESSING).
+
+```json
+{
+  "id": "twin_aBcDeFgHiJkLmNoP",
+  "object": "digital_twin",
+  "property_id": "prop_1A2b3C4d5E6f7G8h",
+  "model_url": "https://storage.property.plus/models/twin_aBcDeFgHiJkLmNoP.ifc",
+  "status": "ACTIVE"
+}
+```
+
+### **Lease**
+
+The Lease object represents the legal agreement that links a Tenant to a Unit for a specified period.
+
+- **id** string: A unique identifier for the lease.
+- **unit_id** string: The ID of the leased Unit.
+- **tenant_ids** array: An array of User IDs for the tenants on the lease.
+- **start_date** date: The start date of the lease term.
+- **end_date** date: The end date of the lease term.
+- **rent_amount** integer: The monthly rent amount in cents.
+
+```json
+{
+  "id": "lease_qRsTuVwXyZ1a2b3c",
+  "object": "lease",
+  "unit_id": "unit_9I8j7K6l5M4n3O2p",
+  "tenant_ids": ["user_d4e5f6g7h8i9j0k1"],
+  "start_date": "2024-01-01",
+  "end_date": "2024-12-31",
+  "rent_amount": 250000
+}
+```
+
+### **WorkOrder**
+
+A WorkOrder represents a request for maintenance, repair, or another service within a property.
+
+- **id** string: A unique identifier for the work order.
+- **property_id** string: The ID of the property where the work is needed.
+- **unit_id** string (optional): The ID of the specific unit, if applicable.
+- **created_by** string: The ID of the User who created the request.
+- **assigned_to** string (optional): The ID of the Vendor or Worker assigned to the task.
+- **title** string: A short summary of the issue (e.g., "Leaky Faucet in Kitchen").
+- **description** string: A detailed description of the issue.
+- **status** string: The current status of the work order (e.g., OPEN, IN_PROGRESS, COMPLETED, CLOSED).
+- **priority** string: The priority level (e.g., LOW, MEDIUM, HIGH, EMERGENCY).
+
+```json
+{
+  "id": "wo_l2m3n4o5p6q7r8s9",
+  "object": "work_order",
+  "property_id": "prop_1A2b3C4d5E6f7G8h",
+  "unit_id": "unit_9I8j7K6l5M4n3O2p",
+  "created_by": "user_d4e5f6g7h8i9j0k1",
+  "assigned_to": "vendor_t0u1v2w3x4y5z6a7",
+  "title": "Leaky Faucet in Kitchen",
+  "description": "The kitchen sink faucet has been dripping constantly for the past two days.",
+  "status": "IN_PROGRESS",
+  "priority": "MEDIUM",
+  "created_at": "2023-11-15T09:30:00Z"
+}
+```
+
+### **User**
+
+The User object represents an individual person who can log in to the Property+ system, such as an administrator, tenant, or worker.
+
+- **id** string: A unique identifier for the user.
+- **email** string: The user's email address, used for login.
+- **first_name** string: The user's first name.
+- **last_name** string: The user's last name.
+- **roles** array: An array of Role objects assigned to the user.
+
+```json
+
+{
+  "id": "user_d4e5f6g7h8i9j0k1",
+  "object": "user",
+  "email": "jane.doe@example.com",
+  "first_name": "Jane",
+  "last_name": "Doe",
+  "roles":
+}
+```

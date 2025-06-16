@@ -1,0 +1,63 @@
+##  Authentication, Authorization, and Security
+
+Security is a foundational pillar of the Property+ platform. Our API employs a robust, multi-layered security model based on industry standards to ensure that data is protected, access is strictly controlled, and integrations are secure. This section provides a detailed explanation of our authentication and authorization mechanisms.
+
+### **3.1 Multi-Tenant Authentication with OAuth 2.0**
+
+The Property+ platform is a multi-tenant system, where each property management company operates within its own secure and isolated environment. Our authentication architecture is specifically designed to support this model, ensuring that one tenant's data is never accessible to another.14
+
+We use OAuth 2.0 as the authorization framework. Property+ acts as the OAuth 2.0 Authorization Server. When a customer (a property management company) signs up for our platform, they are provisioned as a distinct **tenant**. A critical aspect of this setup is that each tenant is assigned a unique **issuer URI**. This URI is the cornerstone of our multi-tenant security model.
+
+#### **Tenant Resolution**
+
+All API requests must be authenticated with a JSON Web Token (JWT) provided as a bearer token in the Authorization header. A key requirement is that this JWT must contain an iss (issuer) claim. The value of this claim must match the unique issuer URI of the tenant whose data is being requested.15
+
+When an API request is received, our gateway first inspects the iss claim within the JWT. This allows the system to identify the correct tenant _before_ any further processing occurs. The request is then routed to the appropriate, isolated data partition for that tenant. This mechanism makes it cryptographically impossible for a token issued for Tenant A to be used to access data from Tenant B.16
+
+#### **Supported Grant Flows**
+
+The Property+ API supports two primary OAuth 2.0 grant types to accommodate different application use cases:
+
+- **Authorization Code Grant:** This is the standard and most secure flow for third-party applications that have a user interface and are acting on behalf of a user (e.g., a custom tenant-facing mobile app or a web portal). This flow involves redirecting the user to a Property+ authorization page to grant consent. After consent is given, the application receives an authorization code, which it can then exchange for an access token. This flow ensures that the user's credentials are never exposed to the third-party application.
+- **Client Credentials Grant:** This flow is designed for server-to-server integrations or background processes where a specific user is not present (e.g., a script that syncs financial data overnight). In this flow, the application authenticates directly using its client_id and client_secret to obtain an access token. This token represents the application's own identity and permissions, not a user's.
+
+The following table summarizes the key OAuth 2.0 endpoints provided by the Property+ Authorization Server.
+
+| Endpoint          | Description                                                                                                                              | Supported Grant Types                  |
+| :---------------- | :--------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------- |
+| /oauth2/authorize | The endpoint where a user is redirected to grant or deny an application's request for access.                                            | Authorization Code                     |
+| /oauth2/token     | The endpoint where an application exchanges an authorization code or its client credentials for an access token.                         | Authorization Code, Client Credentials |
+| /oauth2/jwks.json | The JSON Web Key Set (JWKS) endpoint. It provides the public keys that can be used to verify the signature of JWTs issued by the server. | N/A                                    |
+
+### **3.2 Role-Based Access Control (RBAC)**
+
+Authentication confirms the identity of a user or application within a specific tenant. Authorization determines what actions that authenticated identity is allowed to perform. Property+ uses a robust Role-Based Access Control (RBAC) system to manage permissions.6
+
+After a user is successfully authenticated, their access token (JWT) will contain a custom claim named roles. This claim is an array of strings that lists all the roles assigned to that user (e.g., , ).
+
+Every API endpoint has a required permission level associated with it. When a request is made, the API gateway checks the roles in the user's token against the permissions required for that specific endpoint and action. If the user does not have the required role, the request is denied with a 403 Forbidden status code, even if the token is otherwise valid.
+
+The following matrix provides a high-level overview of the permissions associated with each primary role for key resources. This is not an exhaustive list but illustrates the core permission model.
+
+| Resource    | Action                       | Administrator | Property Manager    | Tenant         | Vendor/Worker   |
+| :---------- | :--------------------------- | :------------ | :------------------ | :------------- | :-------------- |
+| Property    | CREATE, READ, UPDATE, DELETE | ✓             | ✓                   | \-             | \-              |
+| Unit        | CREATE, READ, UPDATE, DELETE | ✓             | ✓                   | \-             | \-              |
+| Lease       | CREATE, UPDATE               | ✓             | ✓                   | \-             | \-              |
+| Lease       | READ                         | ✓             | ✓                   | Own Lease Only | \-              |
+| WorkOrder   | CREATE                       | ✓             | ✓                   | ✓              | \-              |
+| WorkOrder   | READ                         | All           | Assigned Properties | Own Requests   | Assigned Orders |
+| WorkOrder   | UPDATE (Assign)              | ✓             | ✓                   | \-             | \-              |
+| WorkOrder   | UPDATE (Status)              | ✓             | ✓                   | \-             | Assigned Orders |
+| User        | CREATE, READ, UPDATE, DELETE | ✓             | \-                  | \-             | \-              |
+| DigitalTwin | READ                         | ✓             | ✓                   | \-             | \-              |
+| DigitalTwin | UPDATE (Model Upload)        | ✓             | \-                  | \-             | \-              |
+| Sensor      | Ingest Telemetry             | ✓             | ✓                   | \-             | \-              |
+
+### **3.3 API Scopes**
+
+In addition to the coarse-grained control provided by RBAC, the API uses OAuth scopes for fine-grained permission delegation. Scopes allow a user to grant a third-party application a limited subset of their own permissions. For example, a tenant might grant a "smart home" application permission to read sensor data (digital_twin.telemetry.read) but not to view their lease (leases.read).
+
+When an application initiates the Authorization Code Grant flow, it must specify the scopes it is requesting. The user will be shown these requested scopes on the consent screen and can approve or deny the request. The granted scopes are then embedded within the access token. The API will enforce these scopes, denying any request for an action that is not covered by the token's granted scopes.
+
+A comprehensive list of all available scopes (e.g., work_orders.read, work_orders.write, leases.read, digital_twin.telemetry.write) is available in the API Reference section.

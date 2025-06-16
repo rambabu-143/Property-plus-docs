@@ -1,0 +1,64 @@
+# **Property+ and Digital Twin API Documentation**
+
+Welcome to the official API documentation for Property+, the unified platform for intelligent real estate management. This comprehensive guide provides developers with all the necessary information to integrate their applications with the Property+ ecosystem, leverage our powerful Digital Twin technology, and build next-generation solutions for property operations, tenant experiences, and portfolio management.
+
+This document is designed to be a complete reference, covering everything from initial setup and authentication to advanced workflows and best practices. Whether you are building a custom tenant portal, an automated financial reporting tool, or an integration with a third-party service, you will find the necessary resources here.
+
+##  Platform and Architectural Overview
+
+This section provides the conceptual foundation for the Property+ API. A clear understanding of the platform's core principles, architecture, and key actors is essential for building robust and effective integrations. This overview is intended for both technical decision-makers evaluating the platform and developers preparing to write their first line of code.1
+
+### **1.1 Introduction to the Property+ Ecosystem**
+
+Property+ is a comprehensive, cloud-native platform designed to modernize every facet of real estate management. It moves beyond traditional, siloed software by creating a single, cohesive ecosystem that connects property operations, financial management, tenant and vendor relations, and the physical infrastructure of buildings themselves. At its heart, the platform is driven by a powerful REST API that exposes this interconnected data, enabling unprecedented levels of automation, analysis, and integration.
+
+The primary goal of the Property+ API is to serve as a programmable interface to this ecosystem, allowing developers to build custom applications and automate complex workflows that are not possible with off-the-shelf software.2 By providing granular access to the platform's resources, the API empowers developers to create tailored solutions that meet the unique needs of their business.
+
+#### **The Key Actors**
+
+The Property+ platform is designed for a multi-user environment, with distinct roles that govern access and functionality. Understanding these roles is fundamental to comprehending the API's permission model and the context behind different API calls. The primary actors within the ecosystem are:
+
+- **Administrator:** This role represents the super-user for a specific property management company, which is a "tenant" in the context of our multi-tenant SaaS architecture. Administrators have the highest level of permissions. They are responsible for configuring the platform, managing user accounts and roles, setting up properties, defining billing information, and having complete visibility across their organization's entire portfolio.
+- **Property Manager:** This role is responsible for the day-to-day operations of one or more properties. Property Managers oversee leasing cycles, manage tenant communications, create and assign work orders to vendors, approve invoices, and monitor the overall health and performance of their assigned properties. Their access is typically scoped to the properties they manage. This role is inferred from the "General Flow" prototype.
+- **Tenant:** This is the end-user who resides in or leases a commercial or residential unit. Tenants interact with the platform to pay rent, submit maintenance requests, view lease documents, book amenities, and communicate with property management. Their access is strictly limited to their own personal information, their lease, and their unit.
+- **Vendor/Worker:** This category includes third-party companies (Vendors) and their individual employees (Workers) who are contracted to perform services, such as maintenance, repairs, or cleaning. Vendors are assigned work orders by Property Managers. They can view job details, communicate with management about the task, provide status updates (e.g., "In Progress," "Completed"), and submit invoices for payment. Their access is confined to the specific work orders assigned to them.
+
+### **1.2 Core Architectural Principles**
+
+The Property+ API is built on a foundation of industry-standard principles to ensure it is predictable, scalable, and easy for developers to work with. The architecture is designed to promote stability and long-term compatibility.3
+
+#### **RESTful by Design**
+
+The API strictly adheres to the principles of Representational State Transfer (REST). This architectural style is the foundation of the modern web and provides a consistent and logical way to interact with resources.3 Key REST constraints implemented in our API include:
+
+- **Client-Server Separation:** The client application (e.g., a web front-end, mobile app, or third-party server) is completely decoupled from the Property+ server. The API serves as the single, well-defined contract between them. This separation of concerns allows the client and server to evolve independently, as long as the API contract is not broken.3
+- **Statelessness:** Every request sent to the API must contain all the information necessary for the server to understand and process it. The server does not store any client session state between requests.3 All state management, such as user authentication status, is handled on the client side and sent with each request, typically in the form of an authentication token. This design dramatically improves scalability and reliability, as any server instance can handle any client request.
+- **Uniform Interface:** The API provides a consistent and uniform way to interact with all resources. This is achieved through several mechanisms:
+  - **Resource-Based URIs:** Resources are identified by logical, noun-based URIs (e.g., /properties, /work-orders). Verbs are not used in URIs; instead, the action is determined by the HTTP method.4
+  - **Standard HTTP Methods:** The API uses standard HTTP methods to perform CRUD (Create, Read, Update, Delete) operations on resources: GET to retrieve, POST to create, PUT or PATCH to update, and DELETE to remove.5
+  - **Self-Descriptive Messages:** Responses from the API, typically in JSON format, are self-descriptive. They include data that the client can use to understand the resource and may contain hyperlinks (HATEOAS) to related resources or available actions, enabling clients to navigate the API dynamically.3
+
+#### **OpenAPI Specification**
+
+The entire Property+ API is formally defined using the OpenAPI Specification (OAS) 3.0. This specification file serves as the single source of truth for the API's structure, endpoints, parameters, and response models.8 Adhering to OAS provides several key benefits for developers:
+
+- **Interactive Documentation:** The OAS file can be used to automatically generate interactive API documentation (e.g., using Swagger UI or Redoc), allowing developers to explore endpoints and make test calls directly from their browser.1
+- **Client SDK Generation:** Developers can use tools like OpenAPI Generator to create type-safe client libraries (SDKs) in dozens of programming languages, significantly accelerating the integration process.
+- **Consistency and Accuracy:** Because the documentation and the API itself are derived from the same specification, it ensures that the documentation is always up-to-date and accurately reflects the API's behavior.8
+
+The complete openapi.json specification file for the latest version of the API can be downloaded from our developer portal.
+
+### **1.3 Understanding the Property+ Digital Twin**
+
+A core differentiator of the Property+ platform is its implementation of the Digital Twin concept. In the context of our API, the Digital Twin is far more than a static 3D model or a visual rendering; it is a dynamic, multi-layered, and real-time virtual representation of a physical property.9 It serves as the central nervous system for a building, acting as the primary hub that connects and contextualizes disparate data points related to the physical asset.
+
+For a developer, the DigitalTwin object is the key to unlocking the most advanced features of the Property+ API. It provides the context layer that links operational data to physical space. For example, a WorkOrder is not just an abstract task; it is a task linked to a specific HVAC unit, which is an asset located on a specific floor, all modeled within the Digital Twin. This creates a rich, interconnected data graph that can be queried and manipulated via the API.
+
+The Property+ Digital Twin is composed of several integrated layers:
+
+- **Structural Layer:** This foundational layer contains the geometric and spatial data of the property. It includes detailed 3D models, Building Information Modeling (BIM) data, and interactive 2D floor plans. The API allows for the upload and retrieval of this data, enabling applications to visualize and navigate the property virtually.10
+- **Operational Layer:** This is the real-time data layer. The Digital Twin integrates with Internet of Things (IoT) sensors and building management systems to stream live data. This can include energy consumption metrics, HVAC performance data, temperature and humidity readings, occupancy levels from sensors, and security system alerts. The API provides endpoints for ingesting this telemetry data and for querying the current state of any sensor-equipped asset.9
+- **Lifecycle Layer:** This layer provides a complete historical record of the property and its assets. It connects resources like WorkOrder objects to specific components within the twin (e.g., a specific water pump). This allows for a full audit trail of all maintenance, repairs, inspections, and renovations, providing invaluable data for predictive maintenance and capital planning.13
+- **Human Layer:** This layer connects people to the physical space. It establishes relationships between Tenant and Lease resources and the specific Unit they occupy within the Digital Twin's structural model. This enables powerful, context-aware applications, such as allowing a tenant to submit a maintenance request by simply tapping on a location in a virtual floor plan or enabling personalized environmental controls based on a user's location within a building.
+
+By unifying these layers, the Digital Twin transforms a building from a static collection of assets into a dynamic, data-rich environment that can be monitored, analyzed, and controlled programmatically through the API.

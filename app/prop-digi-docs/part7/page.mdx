@@ -1,0 +1,136 @@
+##  Asynchronous Operations with Webhooks
+
+For building modern, event-driven applications, polling the API for changes is inefficient and slow. Property+ provides a robust webhook system that pushes real-time notifications to your application whenever important events occur in your account. This allows you to build responsive and efficient integrations that react instantly to changes.19
+
+### **7.1 Webhook Architecture: Reliable, Asynchronous Delivery**
+
+Our webhook system is designed for reliability and performance. When an event occurs in the platform (e.g., a work order is created), the API does not synchronously send the webhook notification. Instead, it publishes an event message to a distributed message queue, following a Publish-Subscribe (Pub/Sub) pattern.20 A separate, dedicated delivery service consumes messages from this queue and is responsible for sending the webhook requests to your registered endpoints.
+
+This asynchronous architecture provides several key benefits:
+
+- **Performance:** The performance of the core API is not impacted by the availability or response time of your webhook listener. The API call can return a successful response to the user immediately.
+- **Reliability:** The message queue acts as a durable buffer. If your server is temporarily down or slow to respond, the event is not lost. The delivery system will hold the message and retry delivery later.20
+- **Scalability:** The delivery system can be scaled independently to handle a high volume of events without affecting the main application servers.
+
+We guarantee **at-least-once delivery**. This means that under certain failure conditions (e.g., a network timeout where we don't receive your acknowledgment), it is possible for the same event to be delivered more than once. Therefore, it is critical that your webhook handler is designed to be **idempotent**.21
+
+### **7.2 Securing Your Webhook Endpoints (Mandatory)**
+
+Because your webhook endpoint must be a publicly accessible URL, it is crucial to secure it to ensure that the requests it receives are legitimate, unaltered notifications from Property+ and not malicious requests from a bad actor.
+
+We enforce security through HMAC signature validation. This is not an optional feature; it is a mandatory step for all webhook integrations.
+
+The process is as follows:
+
+1. **Generate a Secret:** When you create a webhook subscription via the API or Developer Dashboard, we will generate a unique, cryptographically secure secret for that subscription. This secret is known only to you and to Property+.
+2. **Sign the Payload:** For every event we send, we create a signature by computing an HMAC-SHA256 hash of the entire JSON request body, using your subscription's secret as the key.
+3. **Send the Signature:** This signature is included in the webhook request in an HTTP header named PropertyPlus-Signature.
+4. **Verify on Your End:** When your server receives a webhook request, you must compute the same HMAC-SHA256 hash on the raw request body you received, using the same secret. If the hash you compute exactly matches the hash in the PropertyPlus-Signature header, you can be confident that the request is authentic and came from Property+.22 If the signatures do not match, you must discard the request.
+
+Below are code examples for verifying a signature in Python and Node.js.
+
+#### **Python (with Flask)**
+
+```python
+
+import hmac
+import hashlib
+from flask import Flask, request, abort
+
+app = Flask(__name__)
+WEBHOOK_SECRET = 'whsec_your_webhook_secret'
+
+@app.route('/webhook-listener', methods=)
+def webhook():
+signature_header = request.headers.get('PropertyPlus-Signature')
+if not signature_header:
+abort(400)
+
+    payload = request.get_data()
+    expected_signature = hmac.new(
+        key=WEBHOOK_SECRET.encode('utf-8'),
+        msg=payload,
+        digestmod=hashlib.sha256
+    ).hexdigest()
+
+    if not hmac.compare_digest(expected_signature, signature_header):
+        abort(403) # Invalid signature
+
+    # Signature is valid, process the event
+    event_data = request.get_json()
+    print(f"Received event: {event_data['type']}")
+    #... your processing logic...
+
+    return {'status': 'success'}, 200
+```
+
+#### **Node.js (with Express)**
+
+```javascript
+const express = require("express");
+const crypto = require("crypto");
+const app = express();
+
+const WEBHOOK_SECRET = "whsec_your_webhook_secret";
+
+// Use raw body parser for signature verification
+app.post(
+  "/webhook-listener",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    const signature = req.headers["propertyplus-signature"];
+    if (!signature) {
+      return res.status(400).send("Missing signature");
+    }
+
+    const expectedSignature = crypto
+      .createHmac("sha256", WEBHOOK_SECRET)
+      .update(req.body)
+      .digest("hex");
+
+    // Convert signature strings to Buffers for timing-safe comparison
+    const signatureBuffer = Buffer.from(signature, "utf8");
+    const expectedBuffer = Buffer.from(expectedSignature, "utf8");
+
+    if (
+      signatureBuffer.length !== expectedBuffer.length ||
+      !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)
+    ) {
+      return res.status(403).send("Invalid signature");
+    }
+
+    // Signature is valid, parse and process the event
+    try {
+      const eventData = JSON.parse(req.body.toString("utf8"));
+      console.log(`Received event: ${eventData.type}`);
+      res.json({ status: "success" });
+    } catch (err) {
+      return res.status(400).send("Invalid JSON body");
+    }
+  }
+);
+
+app.listen(3000, () => console.log("Listening for webhooks on port 3000"));
+```
+
+### **7.3 Idempotency and Retries**
+
+Our delivery system will attempt to deliver an event until your server responds with a 2xx status code. If we receive a non-2xx response or the request times out (after 10 seconds), we will consider the delivery a failure and retry.19 We use an exponential backoff strategy for retries, attempting delivery with increasing delays over a period of up to 72 hours.21
+
+Because of this retry logic and the at-least-once delivery guarantee, your endpoint may receive the same event multiple times. To handle this gracefully, you must make your event processing idempotent. Every webhook payload we send includes a top-level delivery_id field, which is a unique identifier for that specific delivery attempt.
+
+The recommended practice is to log the delivery_id of each event as you process it. Before processing a new incoming event, check if you have already processed an event with the same delivery_id. If you have, you should acknowledge the request with a 200 OK response but skip executing your business logic again to avoid duplicate actions.21
+
+### **7.4 Webhook Event Catalog**
+
+You can subscribe to a variety of events to receive notifications about different activities. The following table lists some of the key available events. Each event payload includes a type field indicating the event that occurred and a data object containing the resource that was affected.
+
+| Event Name                | Triggering Action                                                     | Sample Payload Snippet                                                                               |
+| :------------------------ | :-------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------- |
+| work_order.created        | A new work order is submitted.                                        | `{"type": "work_order.created", "data": {"object": {"id": "wo_...", "status": "OPEN"}}}`             |
+| work_order.status_changed | A work order's status is updated (e.g., to IN_PROGRESS or COMPLETED). | `{"type": "work_order.status_changed", "data": {"object": {"id": "wo_...", "status": "COMPLETED"}}}` |
+| lease.signed              | All parties have signed a new lease agreement.                        | `{"type": "lease.signed", "data": {"object": {"id": "lease_...", "start_date": "2024-01-01"}}}`      |
+| tenant.payment.succeeded  | A rent payment submitted by a tenant has been successfully processed. | `{"type": "tenant.payment.succeeded", "data": {"object": {"id": "pay_...", "amount": 250000}}}`      |
+| sensor.anomaly.detected   | An algorithm has detected an anomalous reading from an IoT sensor.    | `{"type": "sensor.anomaly.detected", "data": {"object": {"device_id": "...", "reading": 95.5}}}`     |
+
+A full list of subscribable events is available via the /v1/webhook-event-types endpoint.

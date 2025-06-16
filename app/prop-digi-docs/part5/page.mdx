@@ -1,0 +1,270 @@
+##  API Reference
+
+This section provides a comprehensive and detailed reference for every endpoint available in the Property+ API. Each endpoint is documented with its HTTP method, URI, required permissions, parameters, request body, and possible responses. Code samples are provided in cURL, Python, and JavaScript to facilitate quick implementation.2
+
+The API is versioned via the URI. The current stable version is v1. All endpoint paths are prefixed with /v1.
+
+### **Properties**
+
+Property resources represent the physical buildings and estates managed within the platform.
+
+#### **List all properties**
+
+```http
+GET /v1/properties
+```
+
+Retrieves a list of all properties accessible to the authenticated user. The list is paginated.
+
+- **Permissions:** Administrator, Property Manager
+- **Scopes:** properties.read
+- **Query Parameters:**
+  - limit integer (optional, default: 10): The number of properties to return.
+  - starting_after string (optional): A property ID to start the list from for pagination.
+- **Responses:**
+  - 200 OK: A successful response containing a list of property objects.
+- **Code Samples:**  
+  **cURL**
+
+  ```bash
+  curl -G https://api.sandbox.property.plus/v1/properties
+   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+   -d limit=5
+  ```
+
+  **Python**
+
+  ```python
+  import requests
+  response = requests.get(
+   "https://api.sandbox.property.plus/v1/properties",
+   headers={"Authorization": f"Bearer {access_token}"},
+   params={"limit": 5}
+  )
+  print(response.json())
+  ```
+
+  **JavaScript**
+
+  ```javascript
+  fetch("https://api.sandbox.property.plus/v1/properties?limit=5", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+    .then((res) => res.json())
+    .then(console.log);
+  ```
+
+#### **Create a property**
+```http
+POST /v1/properties
+```
+Creates a new property.
+
+- **Permissions:** Administrator
+- **Scopes:** properties.write
+- **Request Body:** A JSON object representing the new property.
+  - name string (required): The name of the property.
+  - address object (required): A structured address object.
+  - type string (required): The type of property.
+- **Responses:**
+  - 201 Created: The property was created successfully. The response body contains the new property object.
+  - 400 Bad Request: The request body is invalid.
+- **Code Samples:**  
+  **cURL**
+  ```bash
+  curl \-X POST https://api.sandbox.property.plus/v1/properties \\
+   \-H "Authorization: Bearer YOUR_ACCESS_TOKEN" \\
+   \-H "Content-Type: application/json" \\
+   \-d '{
+   "name": "The Waterfront Lofts",
+   "address": {
+   "street_line1": "456 River Road",
+   "city": "Port City",
+   "state": "CA",
+   "postal_code": "90210"
+   },
+   "type": "RESIDENTIAL_MULTIFAMILY"
+   }'
+  ```
+
+---
+
+### **Digital Twins**
+
+Digital Twin resources are the virtual counterparts of physical properties, enabling advanced monitoring and management.
+
+#### **Retrieve a property's digital twin**
+
+```http
+GET /v1/properties/{propertyId}/digital-twin
+```
+
+Retrieves the DigitalTwin object associated with a specific property.
+
+- **Permissions:** Administrator, Property Manager
+- **Scopes:** digital_twin.read
+- **Path Parameters:**
+  - propertyId string (required): The ID of the property.
+- **Responses:**
+  - 200 OK: A successful response containing the digital twin object.
+  - 404 Not Found: The property or its digital twin does not exist.
+- **Code Samples:**  
+  **cURL**  
+  Bash  
+  curl https://api.sandbox.property.plus/v1/properties/prop\_1A2b3C4d5E6f7G8h/digital-twin \\  
+   \-H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+
+#### **Upload a digital twin model**
+
+```http
+POST /v1/digital-twins/{twinId}/model
+```
+
+Uploads a 3D model file (e.g., IFC, Revit) to a DigitalTwin. This is a multipart/form-data request.
+
+- **Permissions:** Administrator
+- **Scopes:** digital_twin.write
+- **Path Parameters:**
+  - twinId string (required): The ID of the digital twin.
+- **Request Body (multipart/form-data):**
+  - file: The model file to upload.
+- **Responses:**
+  - 202 Accepted: The file upload was received and is being processed asynchronously.
+  - 400 Bad Request: No file was provided or the file type is unsupported.
+- **Code Samples:**  
+  **cURL**
+  ```bash
+  curl -X POST https://api.sandbox.property.plus/v1/digital-twins/twin\_aBcDeFgHiJkLmNoP/model
+   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+   -F "file=@/path/to/your/building_model.ifc"
+  ```
+
+---
+
+### **Work Orders**
+
+Work Order resources track maintenance and service requests.
+
+#### **Create a work order**
+
+```http
+POST /v1/work-orders
+```
+
+Creates a new work order. A Tenant can create a work order for their own unit. A Property Manager or Administrator can create one for any property/unit they manage.
+
+- **Permissions:** Administrator, Property Manager, Tenant
+- **Scopes:** work_orders.write
+- **Request Body:** A JSON object representing the new work order.
+  - property_id string (required): The ID of the property.
+  - unit_id string (optional): The ID of the specific unit. Required if created by a Tenant.
+  - title string (required): A brief title for the work order.
+  - description string (required): A detailed description of the issue.
+  - priority string (optional, default: MEDIUM): The priority of the request.
+- **Responses:**
+  - 201 Created: The work order was created successfully.
+  - 403 Forbidden: The user does not have permission to create a work order for the specified property/unit.
+- **Code Samples:**  
+  **cURL**
+  ```bash
+  curl \-X POST https://api.sandbox.property.plus/v1/work-orders \\
+   \-H "Authorization: Bearer YOUR_TENANT_ACCESS_TOKEN" \\
+   \-H "Content-Type: application/json" \\
+   \-d '{
+   "property_id": "prop_1A2b3C4d5E6f7G8h",
+   "unit_id": "unit_9I8j7K6l5M4n3O2p",
+   "title": "AC not cooling",
+   "description": "The air conditioning unit is running but not blowing cold air.",
+   "priority": "HIGH"
+   }'
+  ```
+
+#### **Assign a work order**
+
+```http
+PUT /v1/work-orders/{workOrderId}/assign
+```
+
+Assigns a work order to a specific vendor or worker.
+
+- **Permissions:** Administrator, Property Manager
+- **Scopes:** work_orders.write
+- **Path Parameters:**
+  - workOrderId string (required): The ID of the work order to assign.
+- **Request Body:**
+  - assignee_id string (required): The ID of the Vendor or Worker to assign the task to.
+- **Responses:**
+  - 200 OK: The work order was successfully assigned.
+- **Code Samples:**  
+  **cURL**
+  ```bash
+  curl -X PUT https://api.sandbox.property.plus/v1/work-orders/wo_l2m3n4o5p6q7r8s9/assign
+   -H "Authorization: Bearer YOUR_MANAGER_ACCESS_TOKEN"
+   -H "Content-Type: application/json"
+   -d '{"assignee_id": "vendor_t0u1v2w3x4y5z6a7"}'
+  ```
+
+---
+
+### **IoT & Sensor Management**
+
+These endpoints are used to manage IoT devices and ingest their data into the Digital Twin.
+
+#### **Register a new sensor**
+
+```http
+POST /v1/digital-twins/{twinId}/sensors
+```
+
+Registers a new IoT sensor and associates it with a DigitalTwin.
+
+- **Permissions:** Administrator
+- **Scopes:** digital_twin.sensors.write
+- **Path Parameters:**
+  - twinId string (required): The ID of the digital twin.
+- **Request Body:**
+  - device_id string (required): A unique identifier for the physical device.
+  - type string (required): The type of sensor (e.g., TEMPERATURE, HUMIDITY, ENERGY_METER).
+  - location_in_twin object (optional): Coordinates or asset ID linking the sensor to a specific location in the digital model.
+- **Responses:**
+  - 201 Created: The sensor was registered successfully.
+- **Code Samples:**  
+  **cURL**
+  ```bash
+  curl -X POST https://api.sandbox.property.plus/v1/digital-twins/twin_aBcDeFgHiJkLmNoP/sensors
+   -H "Authorization: Bearer YOUR_ADMIN_ACCESS_TOKEN"
+   -H "Content-Type: application/json"
+   -d '{
+   "device_id": "temp-sensor-lobby-01",
+   "type": "TEMPERATURE",
+   "location_in_twin": {"asset_id": "hvac_zone_1"}
+   }'
+  ```
+
+#### **Ingest sensor telemetry**
+
+```http
+POST /v1/ingest/telemetry
+```
+
+A high-throughput endpoint designed for pushing time-series data from IoT sensors. This endpoint is optimized for bulk ingestion.
+
+- **Permissions:** Administrator, Property Manager (for their properties)
+- **Scopes:** digital_twin.telemetry.write
+- **Request Body:** A JSON object containing an array of telemetry readings.
+  - readings array (required): An array of data points. Each data point must include:
+    - device_id string: The ID of the sensor sending the data.
+    - timestamp timestamp: The ISO 8601 timestamp of the reading.
+    - value float: The sensor reading value.
+- **Responses:**
+  - 202 Accepted: The telemetry data has been accepted for asynchronous processing.
+- **Code Samples:**  
+  **cURL**
+  ```bash
+  curl -X POST https://api.sandbox.property.plus/v1/ingest/telemetry
+   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+   -H "Content-Type: application/json"
+   -d '{
+   "readings":
+   }'
+  ```

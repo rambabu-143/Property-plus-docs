@@ -1,0 +1,162 @@
+##  Advanced Guides and Common Workflows
+
+While the API Reference provides the "what," this section provides the "how." These guides walk through common, real-world scenarios, demonstrating how to orchestrate multiple API calls to accomplish a complete business process. They are designed to illustrate the power of the API in a practical context and provide a blueprint for building sophisticated integrations.18
+
+### **Tutorial 1: The Complete Maintenance Lifecycle**
+
+This tutorial follows a single maintenance request from creation to completion, showcasing how different user roles (Tenant, Property Manager, Vendor) interact with the API to manage the process. This workflow is a cornerstone of property management and demonstrates the API's ability to facilitate complex, multi-actor collaborations.
+
+#### **Step 1: A Tenant Reports an Issue**
+
+The process begins when a tenant discovers a problem in their unit. The tenant, Jane Doe, will use a mobile app (built by a third-party developer using this API) to submit a maintenance request.
+
+1. **Authentication:** Jane's app authenticates her using the OAuth Authorization Code flow. The app receives an access token with the TENANT role and the work_orders.write scope.
+2. **API Call:** The app makes a POST request to /v1/work-orders to create the new request. The request body includes the property and unit IDs, which the app knows from Jane's lease information, along with her description of the problem.
+
+   ```bash
+   \# Request made with Jane's (Tenant) access token
+   POST /v1/work-orders
+   Authorization: Bearer JANE_TENANT_TOKEN
+   Content-Type: application/json
+
+   {
+     "property\_id": "prop\_1A2b3C4d5E6f7G8h",
+     "unit\_id": "unit\_9I8j7K6l5M4n3O2p",
+     "title": "Dishwasher not draining",
+     "description": "The dishwasher ran a cycle last night but is still full of water this morning.",
+     "priority": "MEDIUM"
+   }
+   ```
+
+3. **Result:** The API creates the work order with a status of OPEN and returns a 201 Created response. The system also fires a work_order.created webhook event.
+
+#### **Step 2: A Property Manager Assigns the Job**
+
+The property manager, John Smith, receives a notification about the new work order (triggered by the webhook from Step 1\) on his management dashboard.
+
+1. **Authentication:** John logs into his dashboard, which authenticates him and obtains an access token with the PROPERTY_MANAGER role.
+2. View Details: John's dashboard retrieves the details of the new work order using its ID.
+   GET /v1/work-orders/wo_abc123def456
+3. **Assign to Vendor:** John decides to assign the job to "Reliable Appliance Repair," a trusted vendor. He finds their ID (vendor_xyz789) and uses the "assign" endpoint.
+
+   ```bash
+   \# Request made with John's (Property Manager) access token
+   PUT /v1/work-orders/wo\_abc123def456/assign
+   Authorization: Bearer JOHN\_MANAGER\_TOKEN
+   Content-Type: application/json
+
+   {
+     "assignee\_id": "vendor\_xyz789"
+   }
+   ```
+
+4. **Result:** The API updates the work order's assigned_to field and changes its status to IN_PROGRESS. A work_order.status_changed webhook is fired.
+
+#### **Step 3: A Vendor Completes the Work**
+
+The vendor, Reliable Appliance Repair, receives a notification of the new assignment. A worker, Bob, is dispatched to handle the repair.
+
+1. **Authentication:** Bob uses his company's mobile app, which authenticates him as a Worker for the vendor_xyz789 entity. He gets an access token scoped to his assigned tasks.
+2. **View and Comment:** Bob views the work order details. After inspecting the dishwasher, he adds a comment to update the property manager.
+
+   ```bash
+   \# Request made with Bob's (Worker) access token
+   POST /v1/work-orders/wo_abc123def456/comments
+   Authorization: Bearer BOB_WORKER_TOKEN
+   Content-Type: application/json
+
+   {
+   "text": "The drain pump is clogged. I have cleared the obstruction. Running a test cycle now."
+   }
+   ```
+
+3. **Complete the Job:** After confirming the dishwasher is working correctly, Bob updates the work order's status to COMPLETED.
+
+   ```bash
+   \# Request made with Bob's (Worker) access token
+   PUT /v1/work-orders/wo_abc123def456
+   Authorization: Bearer BOB_WORKER_TOKEN
+   Content-Type: application/json
+
+   {
+   "status": "COMPLETED"
+   }
+   ```
+
+4. **Result:** The API updates the work order status. Another work_order.status_changed webhook is fired, notifying the property manager and the tenant that the work is done. The entire lifecycle is now recorded in the system.
+
+### **Tutorial 2: Onboarding a New Property and its Digital Twin**
+
+This guide is for administrators and describes the process of adding a new property to the platform and establishing its corresponding Digital Twin.
+
+1. Create the Property: First, create the physical Property resource.
+
+```http
+   POST /v1/properties with the property's name and address.
+```
+
+2. Add Units: For a multi-unit property, create each Unit resource, linking it to the property_id from the previous step.
+   ```http
+   POST /v1/properties/propId/units for each unit.
+   ```
+3. Create the Digital Twin: Once the physical structure is defined, create the DigitalTwin resource. This is done via a dedicated endpoint that automatically links it to the property.
+   ```http
+   POST /v1/properties/propId/digital-twin
+   ```
+4. Upload the Model: With the DigitalTwin object created, upload the primary BIM or 3D model file. This populates the twin's structural layer.
+
+   ```http
+   POST /v1/digital-twins/twinId/model
+   ```
+
+5. Register Sensors: Finally, register the known IoT sensors within the building, associating them with the DigitalTwin and, if possible, with specific assets or locations within the model.
+   ````http
+   POST /v1/digital-twins/twinId/sensors for each sensor.
+    ```
+   The property is now fully onboarded, with both its physical and digital representations established in the Property+ platform.
+   ````
+
+### **Best Practices for Data Handling**
+
+To ensure your integration is efficient and performant, follow these best practices when retrieving data.
+
+#### **Pagination**
+
+Endpoints that can return a large number of items (like /v1/properties or /v1/work-orders) are paginated. Our API uses cursor-based pagination, which is more efficient for large datasets than offset-based pagination.
+
+- Use the limit query parameter to specify the number of results per page (e.g., limit=50).
+- The response object will include a has_more boolean field. If true, there are more results available.
+- To fetch the next page, take the id of the _last_ item in the current page's result set and pass it as the starting_after parameter in your next request.
+
+Example:
+
+```http
+GET /v1/work-orders?limit=25\&starting_after=wo_last_item_id
+```
+
+#### **Filtering and Sorting**
+
+Many list endpoints support filtering and sorting via query parameters. This allows you to retrieve only the data you need, reducing payload size and processing overhead.
+
+- Filtering: To filter results, use query parameters that correspond to the resource's fields. For example, to retrieve only open work orders:
+  ```http
+  GET /v1/work-orders?status=OPEN
+  ```
+- Sorting: Use the sort_by parameter to specify a field to sort on and sort_direction (asc or desc) to control the order.
+  ```http
+  GET /v1/work-orders?sort_by=created_at\&sort_direction=desc
+  ```
+
+Refer to the documentation for each specific endpoint to see the available filterable and sortable fields.
+
+#### **Sparse Fieldsets**
+
+To further reduce response sizes, you can request that the API return only specific fields from a resource. This is particularly useful when you only need a few pieces of information from a large object.
+
+Use the fields query parameter with a comma-separated list of the field names you want.
+
+Example: To get only the ID, name, and address of properties:
+
+```http
+GET /v1/properties?fields=id,name,address
+```

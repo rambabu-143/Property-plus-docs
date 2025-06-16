@@ -1,0 +1,38 @@
+##  API Versioning and Changelog
+
+A stable and predictable API is essential for building long-lasting integrations. This section outlines our policies for API versioning and how we communicate changes, ensuring that you can build with confidence and adapt to new features without unexpected disruptions.6
+
+### **9.1 Versioning Strategy**
+
+The Property+ API uses URI-based versioning. The version is specified directly in the request path, for example: /v1/properties.
+
+We are committed to maintaining the stability of each API version. We classify changes into two categories:
+
+- **Non-breaking Changes:** These are backward-compatible changes that will not break existing integrations. Examples include:
+  - Adding new API endpoints.
+  - Adding new optional parameters to existing endpoints.
+  - Adding new properties to existing JSON responses.
+  - Changing the order of properties in JSON responses.
+    These changes will be introduced to the current API version (v1) without a version bump.
+- **Breaking Changes:** These are backward-incompatible changes that could break existing integrations. Examples include:
+  - Removing an endpoint.
+  - Removing or renaming a property in a JSON response.
+  - Changing the data type of a property.
+  - Adding a new required parameter to an existing endpoint.
+  - Changing authentication or authorization mechanisms.
+    Breaking changes will always result in the release of a new API version (e.g., /v2/). We will provide a clear migration guide and a deprecation timeline for the old version to give developers ample time to update their applications.
+
+### **9.2 Changelog**
+
+To keep developers informed of all changes, both breaking and non-breaking, we maintain a public changelog. The changelog is the definitive source for tracking the evolution of the API.
+
+The changelog is available both on our Developer Portal and via a dedicated API endpoint. Each entry in the changelog is dated and tagged with one of the following labels to clearly indicate the nature of the change:
+
+- **\[Added\]** for new features or endpoints.
+- **\[Changed\]** for modifications to existing functionality.
+- **\[Fixed\]** for bug fixes.
+- **\`\`** for features that are scheduled for removal in a future version.
+- **\`\`** for features that have been removed.
+- **\`\`** for security-related updates.
+
+We strongly recommend that all developers subscribe to the changelog's RSS feed or periodically review it to stay informed about updates and new capabilities of the Property+ API.
